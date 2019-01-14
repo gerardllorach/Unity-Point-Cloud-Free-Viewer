@@ -1,24 +1,34 @@
-﻿using UnityEngine;
+﻿// Original project by Gerard Llorach (2014)
+// Updated by Oliver Dawkins and Dominic Zisch (2017) to visualise points using height and intensity gradients
+
+using UnityEngine;
 using System.Collections;
 using System.IO;
 
-public class PointCloudManager : MonoBehaviour {
+public class PointCloudHeightAndIntensity : MonoBehaviour {
 
-	// File
+	// File location
 	public string dataPath;
 	private string filename;
 	public Material matVertex;
 
-	// GUI
-	private float progress = 0;
+    // Methods to colour points
+    public enum cpb {Default, RGB, Height, Intensity}; 
+    public cpb colourPointsBy = cpb.RGB;
+    public Color defaultPointColour;
+    public Gradient colourGradient;
+
+    // Processing GUI
+    private float progress = 0;
 	private string guiText;
 	private bool loaded = false;
 
-	// PointCloud
+	// Point cloud properties
 	private GameObject pointCloud;
 
 	public float scale = 1;
-	public bool invertYZ = false;
+    public bool relocateToOrigin = false;
+    public bool invertYZ = false;
 	public bool forceReload = false;
 
 	public int numPoints;
@@ -29,18 +39,34 @@ public class PointCloudManager : MonoBehaviour {
 	private Color[] colors;
 	private Vector3 minValue;
 
-	
-	void Start () {
-		// Create Resources folder
-		createFolders ();
+    // Point height properties
+    public float minHeight;
+    public float maxHeight;
+    private float heightDiff;
+    private float localDiff;
+
+    // Point intensity properties
+    public float minIntensity;
+    public float maxIntensity;
+    private float intensityDiff;
+    private float relativeDiff;
+
+    void Start () {
+
+        //Calculate height difference for the visualising height gradient
+        heightDiff = maxHeight - minHeight;
+
+        //Calculate intensity difference for visualising intensity gradient
+        intensityDiff = maxIntensity - minIntensity;
+
+        // Create Resources folder
+        createFolders();
 
 		// Get Filename
 		filename = Path.GetFileName(dataPath);
 
-		loadScene ();
+		loadScene();
 	}
-
-
 
 	void loadScene(){
 		// Check if the PointCloud was loaded previously
@@ -55,14 +81,13 @@ public class PointCloudManager : MonoBehaviour {
 		} else
 			// Load stored PointCloud
 			loadStoredMeshes();
-	}
-	
-	
+	}	
+    	
 	void loadPointCloud(){
 		// Check what file exists
-		if (File.Exists (Application.dataPath + dataPath + ".off")) 
-			// load off
-			StartCoroutine ("loadOFF", dataPath + ".off");
+		if (File.Exists (Application.dataPath + dataPath + ".xyz")) 
+			// Load XYZ
+			StartCoroutine ("loadXYZ", dataPath + ".xyz");
 		else 
 			Debug.Log ("File '" + dataPath + "' could not be found"); 
 		
@@ -78,44 +103,76 @@ public class PointCloudManager : MonoBehaviour {
 		loaded = true;
 	}
 	
-	// Start Coroutine of reading the points from the OFF file and creating the meshes
-	IEnumerator loadOFF(string dPath){
+	// Start Coroutine of reading the points from the XYZ file and creating the meshes
+	IEnumerator loadXYZ(string dPath){
 
 		// Read file
+		numPoints = File.ReadAllLines (Application.dataPath + dPath).Length;
+
 		StreamReader sr = new StreamReader (Application.dataPath + dPath);
-		sr.ReadLine (); // OFF
-		string[] buffer = sr.ReadLine ().Split(); // nPoints, nFaces
-		
-		numPoints = int.Parse (buffer[0]);
+
 		points = new Vector3[numPoints];
 		colors = new Color[numPoints];
 		minValue = new Vector3();
 		
 		for (int i = 0; i< numPoints; i++){
-			buffer = sr.ReadLine ().Split ();
+			string[] buffer = sr.ReadLine ().Split ();
 
 			if (!invertYZ)
-				points[i] = new Vector3 (float.Parse (buffer[0])*scale, float.Parse (buffer[1])*scale,float.Parse (buffer[2])*scale) ;
+				points[i] = new Vector3 (float.Parse (buffer[0])*scale, float.Parse (buffer[1])*scale,float.Parse (buffer[2])*scale);
 			else
-				points[i] = new Vector3 (float.Parse (buffer[0])*scale, float.Parse (buffer[2])*scale,float.Parse (buffer[1])*scale) ;
-			
-			if (buffer.Length >= 5)
-				colors[i] = new Color (int.Parse (buffer[3])/255.0f,int.Parse (buffer[4])/255.0f,int.Parse (buffer[5])/255.0f);
-			else
-				colors[i] = Color.cyan;
+				points[i] = new Vector3 (float.Parse (buffer[0])*scale, float.Parse (buffer[2])*scale,float.Parse (buffer[1])*scale);
 
-			// Relocate Points near the origin
-			//calculateMin(points[i]);
+            // Test enum for technique to colour points
+            // Apply default point colour
+            if (colourPointsBy == cpb.Default)
+            {
+                colors[i] = defaultPointColour;
+            }
 
-			// GUI
-			progress = i *1.0f/(numPoints-1)*1.0f;
-			if (i%Mathf.FloorToInt(numPoints/20) == 0){
+                // Colour points by RGB values
+                if (colourPointsBy == cpb.RGB)
+            {
+                if (buffer.Length >= 5)
+                    colors[i] = new Color(int.Parse(buffer[3]) / 255.0f, int.Parse(buffer[4]) / 255.0f, int.Parse(buffer[5]) / 255.0f);
+                else
+                    colors[i] = defaultPointColour;
+            }
+
+            // TO DO - Automate calculation of minHeight and maxHeight
+            // Colour points by Height
+            else if (colourPointsBy == cpb.Height)
+            {
+                if (!invertYZ)
+                    localDiff = float.Parse(buffer[1]) - minHeight;
+                else
+                    localDiff = float.Parse(buffer[2]) - minHeight;
+                colors[i] = colourGradient.Evaluate(localDiff / heightDiff);
+            }
+
+            //TO DO - Automate calculation of minIntensity and maxIntensity
+            // Colour points by intensity 
+            else if (colourPointsBy == cpb.Intensity)
+            {
+                relativeDiff = float.Parse(buffer[6]) - minIntensity;
+                colors[i] = colourGradient.Evaluate(relativeDiff / intensityDiff);
+            }
+
+            // Relocate points near the origin
+            if (relocateToOrigin == true)
+            {
+                calculateMin(points[i]);
+            }
+
+            // Processing GUI
+            progress = i *1.0f/(numPoints-1)*1.0f;
+			if (i%Mathf.FloorToInt(numPoints/20) == 0)
+            {
 				guiText=i.ToString() + " out of " + numPoints.ToString() + " loaded";
 				yield return null;
 			}
 		}
 
-		
 		// Instantiate Point Groups
 		numPointGroups = Mathf.CeilToInt (numPoints*1.0f / limitPoints*1.0f);
 
@@ -135,7 +192,6 @@ public class PointCloudManager : MonoBehaviour {
 
 		loaded = true;
 	}
-
 	
 	void InstantiateMesh(int meshInd, int nPoints){
 		// Create Mesh
@@ -146,7 +202,6 @@ public class PointCloudManager : MonoBehaviour {
 
 		pointGroup.GetComponent<MeshFilter> ().mesh = CreateMesh (meshInd, nPoints, limitPoints);
 		pointGroup.transform.parent = pointCloud.transform;
-
 
 		// Store Mesh
 		UnityEditor.AssetDatabase.CreateAsset(pointGroup.GetComponent<MeshFilter> ().mesh, "Assets/Resources/PointCloudMeshes/" + filename + @"/" + filename + meshInd + ".asset");
@@ -199,7 +254,6 @@ public class PointCloudManager : MonoBehaviour {
 		if (!Directory.Exists (Application.dataPath + "/Resources/PointCloudMeshes/"))
 			UnityEditor.AssetDatabase.CreateFolder ("Assets/Resources", "PointCloudMeshes");
 	}
-
 
 	void OnGUI(){
 
