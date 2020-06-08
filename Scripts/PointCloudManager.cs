@@ -5,7 +5,7 @@ using UnityEngine;
 using System.Collections;
 using System.IO;
 
-public class PointCloudHeightAndIntensity : MonoBehaviour {
+public class PointCloudManager : MonoBehaviour {
 
 	// File location
 	public string dataPath;
@@ -20,7 +20,7 @@ public class PointCloudHeightAndIntensity : MonoBehaviour {
 
     // Processing GUI
     private float progress = 0;
-	private string guiText;
+	private new string guiText;
 	private bool loaded = false;
 
 	// Point cloud properties
@@ -116,7 +116,7 @@ public class PointCloudHeightAndIntensity : MonoBehaviour {
 		minValue = new Vector3();
 		
 		for (int i = 0; i< numPoints; i++){
-			string[] buffer = sr.ReadLine ().Split ();
+			string[] buffer = sr.ReadLine ().Split(',');
 
 			if (!invertYZ)
 				points[i] = new Vector3 (float.Parse (buffer[0])*scale, float.Parse (buffer[1])*scale,float.Parse (buffer[2])*scale);
@@ -188,7 +188,7 @@ public class PointCloudHeightAndIntensity : MonoBehaviour {
 		InstantiateMesh (numPointGroups-1, numPoints- (numPointGroups-1) * limitPoints);
 
 		//Store PointCloud
-		UnityEditor.PrefabUtility.CreatePrefab ("Assets/Resources/PointCloudMeshes/" + filename + ".prefab", pointCloud);
+		UnityEditor.PrefabUtility.SaveAsPrefabAsset(pointCloud, "Assets/Resources/PointCloudMeshes/" + filename + ".prefab");
 
 		loaded = true;
 	}
