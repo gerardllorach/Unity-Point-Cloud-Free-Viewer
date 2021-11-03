@@ -4,3 +4,6 @@ The code has not been updated since 2014 and it is not mantained. Please follow 
 
 Unity package (version 0.0)
 https://assetstore.unity.com/packages/tools/utilities/point-cloud-free-viewer-19811
+
+For a more complete alternative, check out the point cloud viewer from Keijiro Takahaji, as suggested by Albert Callejo:
+https://github.com/keijiro/Pcx
