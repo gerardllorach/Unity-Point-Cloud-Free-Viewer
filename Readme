@@ -1,4 +1,7 @@
-Point Cloud Free Viewer is a solution for viewing laser scanned point cloud data inside Unity for free. This repository is ment for people that want to improve the code by making git pull requests.
+Point Cloud Free Viewer is a solution for viewing laser scanned point cloud data inside Unity for free. This repository is meant for people that want to improve the code by making git pull requests.
+
+This is a follow-up from this web page (Retrieved 15th July 2014):
+http://www.kamend.com/2014/05/rendering-a-point-cloud-inside-unity/
 
 The code has not been updated since 2014 and it is not mantained. Please follow the updates of other contributors in this repository.
 
